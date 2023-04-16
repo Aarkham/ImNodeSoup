@@ -2,7 +2,7 @@
 
 This is a version od https://github.com/olvb/nodesoup for dear imgui.
 
-I have adapted nodesoup form olvb to dear imgui. I just made the changes to allow for an interactive frame rate. All credit goes to him.
+I have adapted nodesoup from Olivier Birot to dear imgui. I just made the changes to allow for an interactive frame rate. All credit goes to him.
 
 
 ![ImNodeSoup](https://user-images.githubusercontent.com/8093144/232327587-5d43ac67-ca95-402f-a280-a08d4056f22b.gif)
