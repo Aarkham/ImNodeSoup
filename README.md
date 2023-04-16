@@ -1,6 +1,6 @@
 # ImNodeSoup
 
-This is a version od https://github.com/olvb/nodesoup for dear imgui.
+This is a version of https://github.com/olvb/nodesoup for dear imgui.
 
 I have adapted nodesoup from Olivier Birot to dear imgui. I just made the changes to allow for an interactive frame rate. All credit goes to him.
 
