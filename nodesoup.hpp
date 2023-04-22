@@ -6,6 +6,16 @@
 
 
 
+struct NsPosition
+{
+  ImVec2 m_Pos;
+  float  m_Radius;
+  bool   m_Fixed;
+};
+
+
+constexpr float kInvalidPos=-1000000.0f;
+
 inline double norm(const ImVec2& aImVec2) noexcept
 {
   return sqrt(aImVec2.x * aImVec2.x + aImVec2.y * aImVec2.y);
@@ -20,16 +30,10 @@ using adj_list_t = std::vector<std::vector<vertex_id_t>>;
 
 
 // Assigns diameters to vertices based on their degree
-std::vector<float> size_radiuses(const adj_list_t& aAdjList,float aMinRadius=4.0f, float aK=300.0f);
+void SetRadiuses(const adj_list_t& aAdjList,std::vector<NsPosition>& aPositions,float aMinRadius=4.0f,float aK=300.0f);
 
-
-// Distribute vertices equally on a 1.0 radius circle
-void circle(const adj_list_t& aAdjList,std::vector<ImVec2>& aPositions);
-
-
-// Center and scale vertices so the graph fits on a canvas of given dimensions
-void center_and_scale(unsigned int aWidth,unsigned int aHeight,std::vector<ImVec2>& aPositions);
-
+// Distribute vertices equally on a 1.0 radius circle (aCircleMode==true) or randomly in unit square (aCircleMode==false)
+void SetInitPositions(bool aCircleMode,std::vector<NsPosition>& aPositions);
 
 }
 

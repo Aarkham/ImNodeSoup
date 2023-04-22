@@ -40,6 +40,24 @@ v3 -- v5;
 
 
 
+const char* k6_2_dot = R"str(graph {
+v0 -- v1;
+v1 -- v2;
+v2 -- v3;
+v3 -- v4;
+v4 -- v5;
+v5 -- v0;
+v5 -- v6;
+v6 -- v7;
+v7 -- v8;
+v8 -- v9;
+v9 -- v10;
+v10 -- v5;
+})str";
+
+
+
+
 const char* small_dense_dot = R"str(graph {
 v0 -- v1;
 v0 -- v2;
@@ -577,45 +595,160 @@ nodesoup::adj_list_t read_from_dot(const char* aDotData)
 
 const float kWindowInitWidth = 800.0f;
 const float kWindowInitHeight= 600.0f;
+static ImVec2 gDisp{0.0f,0.0f};
+static float  gScale=1.0f;
 
 
 
-static void DrawData(const nodesoup::adj_list_t& aAdjList,const std::vector<ImVec2>& aPositions,const std::vector<float>& aRadiuses)
+
+struct MoveRes
 {
-  static ImVec2 disp{0.0f,0.0f};
-  static float scale=1.0f;
+  bool   m_Moved;
+  bool   m_Recalculate;
+  nodesoup::vertex_id_t m_Index;
+  ImVec2 m_Disp;
+};
 
+
+
+
+
+static inline float sq_dist(const ImVec2& aPos1,const ImVec2& aPos2) noexcept
+{
+  ImVec2 d=aPos2-aPos1;
+  return d.x*d.x + d.y*d.y;
+}
+
+
+
+static ImVec2 GetStartPos() noexcept
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindowRead();
+  return window->Pos+gDisp;
+}
+
+
+
+static nodesoup::vertex_id_t GetPosAt(const ImVec2& aPos,const std::vector<NsPosition>& aPositions)
+{
+  ImVec2 origin(kWindowInitWidth / 2.0, kWindowInitHeight / 2.0);
+  ImVec2 cursor_pos=GetStartPos();
+
+  for(nodesoup::vertex_id_t v_id=0; v_id<aPositions.size(); v_id++)
+    {
+      ImVec2 v_pos = aPositions[v_id].m_Pos*gScale+origin+cursor_pos;
+
+      if(sq_dist(v_pos,aPos)< 2.0f*aPositions[v_id].m_Radius*aPositions[v_id].m_Radius)
+        {
+          return v_id;
+        }
+    }
+
+  return -1;
+}
+
+
+
+static MoveRes MovePos(const std::vector<NsPosition>& aPositions)
+{
+  MoveRes res;
+
+  ImGuiIO& io = ImGui::GetIO();
+
+  if(!io.MouseDown[1] && !io.MouseReleased[1])
+    {
+      res.m_Moved=false;
+      res.m_Recalculate=false;
+
+      return res;
+    }
+
+  ImVec2 mouse_pos=io.MousePos;
+  nodesoup::vertex_id_t v_id=GetPosAt(mouse_pos,aPositions);
+  if(v_id==-1) // Not over a node
+    {
+      res.m_Moved=false;
+      res.m_Recalculate=false;
+      return res;
+    }
+
+  if(io.MouseDown[1])
+    {
+      res.m_Index=v_id;
+      res.m_Disp=io.MouseDelta/gScale;
+      res.m_Moved=true;
+      res.m_Recalculate=false;
+      return res;
+    }
+
+  if(io.MouseReleased[1])
+    {
+      res.m_Index=v_id;
+      res.m_Recalculate=true;
+
+      if(io.MouseDragMaxDistanceSqr[1]<10)
+        {
+          res.m_Disp={kInvalidPos,kInvalidPos};
+        }
+      else
+        {
+          res.m_Disp=io.MouseDelta/gScale;
+        }
+
+      return res;
+    }
+
+  assert(0);
+
+  res.m_Moved=false;
+  res.m_Recalculate=false;
+
+  return res;
+
+
+}
+
+
+
+
+static void DrawData(const nodesoup::adj_list_t& aAdjList,const std::vector<NsPosition>& aPositions,bool aAllowMove
+                    ,bool aDrawDebug)
+{
   ImGuiWindow* w=ImGui::GetCurrentWindow();
   ImGuiIO& io=ImGui::GetIO();
 
-  if(io.MouseDownDuration[1]>0.0)
+  if(io.MouseDownDuration[1]>0.0 && aAllowMove)
     {
       if(w->InnerClipRect.Contains(io.MousePos))
         {
-          disp+=io.MouseDelta;
+          gDisp+=io.MouseDelta;
         }
     }
 
   if(io.MouseWheel>0.0f)
     {
-      scale*=1.1f;
+      gScale*=1.1f;
     }
   else if(io.MouseWheel<0.0f)
     {
-      scale*=0.9f;
+      gScale*=0.9f;
     }
 
   ImDrawList* draw_list=ImGui::GetWindowDrawList();
-  ImVec2 cursor_pos=ImGui::GetCursorScreenPos()+disp;
+  ImVec2 cursor_pos=GetStartPos();
 
   ImVec2 origin(kWindowInitWidth/2.0,kWindowInitHeight/2.0);
 
   const ImU32 node_col=ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive);
+  const ImU32 node_fix_col=ImGui::GetColorU32(ImGuiCol_NavHighlight);
   const ImU32 arc_col =ImGui::GetColorU32(ImGuiCol_ScrollbarGrab);
+  const ImU32 txt_col =ImGui::GetColorU32(ImGuiCol_PlotLinesHovered);
 
-  for(nodesoup::vertex_id_t v_id=0; v_id< aAdjList.size(); v_id++)
+
+  for(nodesoup::vertex_id_t v_id=0; v_id<aAdjList.size(); v_id++)
     {
-      ImVec2 v_pos = aPositions[v_id]*scale+origin;
+      const NsPosition& curr_pos=aPositions[v_id];
+      ImVec2 v_pos=curr_pos.m_Pos*gScale+origin;
 
       for(auto adj_id:aAdjList[v_id])
         {
@@ -624,16 +757,23 @@ static void DrawData(const nodesoup::adj_list_t& aAdjList,const std::vector<ImVe
               continue;
             }
 
-          ImVec2 adj_pos=aPositions[adj_id]*scale+origin;
+          ImVec2 adj_pos=aPositions[adj_id].m_Pos*gScale+origin;
           draw_list->AddLine(cursor_pos+v_pos,cursor_pos+adj_pos,arc_col);
         }
 
-      draw_list->AddCircleFilled(cursor_pos+ImVec2(v_pos.x,v_pos.y),aRadiuses[v_id],node_col);
+
+      draw_list->AddCircleFilled(cursor_pos+ImVec2(v_pos.x,v_pos.y),curr_pos.m_Radius, curr_pos.m_Fixed?node_fix_col:node_col);
+      if(aDrawDebug)
+        {
+          draw_list->AddText(cursor_pos+ImVec2(v_pos.x,v_pos.y), txt_col, std::to_string(v_id).c_str());
+          draw_list->AddText(cursor_pos+ImVec2(v_pos.x,v_pos.y+20.0f), txt_col, std::to_string(v_pos.x).c_str());
+          draw_list->AddText(cursor_pos+ImVec2(v_pos.x,v_pos.y+40.0f), txt_col, std::to_string(v_pos.y).c_str());
+        }
     }
 
   ImGuiContext& g = *GImGui;
   ImGui::SetCursorPos({20.0f,w->InnerClipRect.GetHeight()-g.FontSize });
-  ImGui::Text("x:%.3f  y:%.3f  scale:%.3f",disp.x,disp.y,scale);
+  ImGui::Text("x:%.3f  y:%.3f  scale:%.3f",gDisp.x,gDisp.y,gScale);
 }
 
 
@@ -641,7 +781,7 @@ static void DrawData(const nodesoup::adj_list_t& aAdjList,const std::vector<ImVe
 
 void ShowNodeSoup()
 {
-  static std::vector<ImVec2> positions;
+  static std::vector<NsPosition> positions;
   static std::vector<float> radiuses;
 
   float k=15.0;
@@ -654,6 +794,12 @@ void ShowNodeSoup()
   constexpr int kKamadaKawai=1;
   static int method=kFruchtermanReingold;
 
+  constexpr int kCircle=0;
+  constexpr int kRandom=1;
+  static int init_mode=kCircle;
+
+  static bool draw_debug=false;
+
 
   ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Appearing);
   ImGui::SetNextWindowSize(ImVec2(kWindowInitWidth,kWindowInitHeight), ImGuiCond_Appearing);
@@ -662,28 +808,47 @@ void ShowNodeSoup()
     {
       int prev_method=method;
 
-      ImGui::RadioButton("Fruchterman Reingold",&method,kFruchtermanReingold);
-      ImGui::RadioButton("KamadaKawai",&method,kKamadaKawai);
+      ImGui::BeginGroup();
+        ImGui::RadioButton("Fruchterman Reingold",&method,kFruchtermanReingold);
+        ImGui::RadioButton("Kamada Kawai",&method,kKamadaKawai);
+      ImGui::EndGroup();
 
-      const char* items[]={"None","K6","Small dense","Bin tree","Quad tree"};
-      const char* items_data[] = {"", k6_dot,small_dense_dot,bin_tree_dot,quad_tree_dot};
-      static int item_current = 0;
+      ImGui::SameLine(350.0f);
+
+      ImGui::BeginGroup();
+        ImGui::RadioButton("Init circle",&init_mode,kCircle);
+        ImGui::RadioButton("Init random",&init_mode,kRandom);
+      ImGui::EndGroup();
+
+      const char* items[]={"None","K6","K6-2","Small dense","Bin tree","Quad tree"};
+      const char* items_data[] = {"", k6_dot,k6_2_dot,small_dense_dot,bin_tree_dot,quad_tree_dot};
+      static int item_current=0;
       bool change=ImGui::Combo("Data", &item_current,items,IM_ARRAYSIZE(items));
+      ImGui::SameLine();
+      change|=ImGui::SmallButton("R");
+
+      ImGui::NewLine();
+      ImGui::Checkbox("Show debug info",&draw_debug);
+      if(draw_debug)
+        {
+          ImGui::NewLine();
+          ImGui::Text("Energy: %.3f",static_cast<float>(method==kFruchtermanReingold?fr.GetEnergy() : ka.GetEnergy()  ));
+        }
 
       if(prev_method!=method || change)
         {
           adj_list=read_from_dot(items_data[item_current]);
-          radiuses=nodesoup::size_radiuses(adj_list);
           positions.resize(adj_list.size());
-          nodesoup::circle(adj_list,positions);
+          nodesoup::SetRadiuses(adj_list,positions);
+
 
           if(method==kFruchtermanReingold)
             {
-              fr.Start();
+              fr.Start(init_mode==kCircle);
             }
           else
             {
-              ka.Start(positions);
+              ka.Start(init_mode==kCircle);
             }
         }
 
@@ -699,8 +864,20 @@ void ShowNodeSoup()
               }
           }
 
+      MoveRes r=MovePos(positions);
+      if(r.m_Moved)
+        {
+          if(method==kFruchtermanReingold)
+            {
+              fr.MovePos(r.m_Index,r.m_Disp,r.m_Recalculate);
+            }
+          else
+            {
+              ka.MovePos(r.m_Index,r.m_Disp,r.m_Recalculate);
+            }
+        }
 
-      DrawData(adj_list,positions,radiuses);
+      DrawData(adj_list,positions,!r.m_Moved,draw_debug);
 
       ImGui::End();
     }
