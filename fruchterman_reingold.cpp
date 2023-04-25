@@ -6,7 +6,6 @@
 namespace nodesoup
 {
 
-using std::vector;
 
 FruchtermanReingold::FruchtermanReingold(const adj_list_t& aAdjList,double aK)
     : m_AdjList(aAdjList)
@@ -120,7 +119,7 @@ void FruchtermanReingold::DoStep()
 
 
 
-void FruchtermanReingold::Step(int aStepSize,int aMaxStep,vector<NsPosition>& aPositions)
+void FruchtermanReingold::Step(int aStepSize,int aMaxStep,std::vector<NsPosition>& aPositions)
 {
   if(m_CurrIter>=aMaxStep && aMaxStep>0)
     {
