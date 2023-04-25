@@ -782,7 +782,6 @@ static void DrawData(const nodesoup::adj_list_t& aAdjList,const std::vector<NsPo
 void ShowNodeSoup()
 {
   static std::vector<NsPosition> positions;
-  static std::vector<float> radiuses;
 
   float k=15.0;
 
