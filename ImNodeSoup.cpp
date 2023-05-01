@@ -592,12 +592,13 @@ nodesoup::adj_list_t read_from_dot(const char* aDotData)
 
 
 
-
+constexpr std::size_t kInvadidVertex=static_cast<std::size_t>(-1);
+constexpr float kMinUIDist=9.0f;  // TODO: Calculate this with DPI?
 const float kWindowInitWidth = 800.0f;
 const float kWindowInitHeight= 600.0f;
 static ImVec2 gDisp{0.0f,0.0f};
 static float  gScale=1.0f;
-
+static nodesoup::vertex_id_t gSelectedVertex=kInvadidVertex;
 
 
 
@@ -649,64 +650,72 @@ static nodesoup::vertex_id_t GetPosAt(const ImVec2& aPos,const std::vector<NsPos
 
 
 
+
+
+
 static MoveRes MovePos(const std::vector<NsPosition>& aPositions)
 {
   MoveRes res;
 
   ImGuiIO& io = ImGui::GetIO();
 
-  if(!io.MouseDown[1] && !io.MouseReleased[1])
+  if(gSelectedVertex==kInvadidVertex) // No hay ninguno seleccionado
     {
-      res.m_Moved=false;
-      res.m_Recalculate=false;
-
-      return res;
-    }
-
-  ImVec2 mouse_pos=io.MousePos;
-  nodesoup::vertex_id_t v_id=GetPosAt(mouse_pos,aPositions);
-  if(v_id==-1) // Not over a node
-    {
-      res.m_Moved=false;
-      res.m_Recalculate=false;
-      return res;
-    }
-
-  if(io.MouseDown[1])
-    {
-      res.m_Index=v_id;
-      res.m_Disp=io.MouseDelta/gScale;
-      res.m_Moved=true;
-      res.m_Recalculate=false;
-      return res;
-    }
-
-  if(io.MouseReleased[1])
-    {
-      res.m_Index=v_id;
-      res.m_Recalculate=true;
-
-      if(io.MouseDragMaxDistanceSqr[1]<10)
+      if(io.MouseDown[1])
         {
-          res.m_Disp={kInvalidPos,kInvalidPos};
+          ImVec2 mouse_pos=io.MousePos;
+          gSelectedVertex=GetPosAt(mouse_pos,aPositions);
+
+
+          res.m_Index=gSelectedVertex;
+          res.m_Disp={0.0f,0.0f};
+          res.m_Moved=(gSelectedVertex==kInvadidVertex?false:true);
+          res.m_Recalculate=false;
+
+          return res;
         }
       else
         {
-          res.m_Disp=io.MouseDelta/gScale;
-        }
+          res.m_Moved=false;
+          res.m_Recalculate=false;
 
-      return res;
+          return res;
+        }
+    }
+  else // Hay un vertice seleccionado
+    {
+      if(io.MouseDown[1]) // Lo esta moviendo
+        {
+          res.m_Index=gSelectedVertex;
+          res.m_Disp=io.MouseDelta/gScale;
+          res.m_Moved=true;
+          res.m_Recalculate=false;
+          return res;
+        }
+      else // Ha dejado de pulsar
+        {
+          res.m_Index=gSelectedVertex;
+          res.m_Moved=true;
+          res.m_Recalculate=true;
+
+          if(io.MouseDragMaxDistanceSqr[1]<kMinUIDist)
+            {
+              res.m_Disp={kInvalidPos,kInvalidPos};
+            }
+          else
+            {
+              res.m_Disp=io.MouseDelta/gScale;
+            }
+
+          gSelectedVertex=kInvadidVertex;
+
+          return res;
+        }
     }
 
   assert(0);
-
-  res.m_Moved=false;
-  res.m_Recalculate=false;
-
-  return res;
-
-
 }
+
 
 
 

@@ -183,10 +183,7 @@ void FruchtermanReingold::MovePos(vertex_id_t aVertexId,const ImVec2& aDisp,bool
     {
       if(aDisp.x==kInvalidPos && aDisp.y==kInvalidPos)
         {
-          if(m_Positions[aVertexId].m_Fixed)
-            {
-              m_Positions[aVertexId].m_Fixed=false;
-            }
+          m_Positions[aVertexId].m_Fixed=!m_Positions[aVertexId].m_Fixed;
         }
 
       m_CurrIter=1;
@@ -195,7 +192,10 @@ void FruchtermanReingold::MovePos(vertex_id_t aVertexId,const ImVec2& aDisp,bool
     }
 
   m_Positions[aVertexId].m_Pos+=aDisp;
-  m_Positions[aVertexId].m_Fixed=true;
+  if(sq_norm(aDisp)>0.0f)
+    {
+      m_Positions[aVertexId].m_Fixed=true;
+    }
 }
 
 

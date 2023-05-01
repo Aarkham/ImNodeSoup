@@ -337,10 +337,7 @@ void KamadaKawai::MovePos(vertex_id_t aVertexId,const ImVec2& aDisp,bool aRecalc
     {
       if(aDisp.x==kInvalidPos && aDisp.y==kInvalidPos)
         {
-          if(m_Positions[aVertexId].m_Fixed)
-            {
-              m_Positions[aVertexId].m_Fixed=false;
-            }
+          m_Positions[aVertexId].m_Fixed=!m_Positions[aVertexId].m_Fixed;
         }
 
       double energy=ComputeVertexEnergy(aVertexId);
@@ -356,7 +353,10 @@ void KamadaKawai::MovePos(vertex_id_t aVertexId,const ImVec2& aDisp,bool aRecalc
 
   ImVec2 disp=aDisp/m_Scale;
   m_Positions[aVertexId].m_Pos+=disp;
-  m_Positions[aVertexId].m_Fixed=true;
+  if(sq_norm(aDisp)>0.0f)
+    {
+      m_Positions[aVertexId].m_Fixed=true;
+    }
 }
 
 

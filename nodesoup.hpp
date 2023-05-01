@@ -16,10 +16,19 @@ struct NsPosition
 
 constexpr float kInvalidPos=-1000000.0f;
 
+
 inline double norm(const ImVec2& aImVec2) noexcept
 {
   return sqrt(aImVec2.x * aImVec2.x + aImVec2.y * aImVec2.y);
 }
+
+inline float sq_norm(const ImVec2& aImVec2) noexcept
+{
+  return aImVec2.x*aImVec2.x + aImVec2.y*aImVec2.y;
+}
+
+
+
 
 namespace nodesoup
 {
